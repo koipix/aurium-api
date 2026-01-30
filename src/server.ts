@@ -26,6 +26,41 @@ app.get("/test", (req: Request, res: Response) => {
   });
 });
 
+//fetch for unverified students
+app.get("/fetch/verify", (req: Request, res: Response) => {
+  console.log("fetch got!");
+
+  res.json([
+    {
+      id: "101",
+      idNumber: "123456",
+      name: "Koi",
+      program: "BSCS",
+      personalEmail: "koi@gmail.com",
+      umEmail: "koi@umindanao.edu.ph",
+      status: "pending", 
+    },
+    {
+      id: "102",
+      idNumber: "987654",
+      name: "Rui",
+      program: "BSM",
+      personalEmail: "rui@gmail.com",
+      umEmail: "rui@umindanao.edu.ph",
+      status: "pending", 
+    },
+    {
+      id: "103",
+      idNumber: "345921",
+      name: "Rin",
+      program: "Magiciology",
+      personalEmail: "rin@gmail.com",
+      umEmail: "rin@umindanao.edu.ph",
+      status: "pending", 
+    }
+  ]);
+});
+
 //post requests
 app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
@@ -33,6 +68,7 @@ app.post("/api/submit", async (req: Request, res: Response) => {
   
   try {
     const body = req.body;
+    console.log(body);
 
     if (!body.id) {
       throw new Error("Student ID is required!");
@@ -59,7 +95,6 @@ app.post("/api/submit", async (req: Request, res: Response) => {
             is_verified: false,
           },
         },
-
         //TODO: add more required data later on..
       },
     });
