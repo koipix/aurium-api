@@ -62,10 +62,32 @@ app.get("/fetch/verify", (req: Request, res: Response) => {
 });
 
 //post requests
+app.post("/post/verify", async (req: Request, res: Response) => {
+  console.log("got verification request!");
+
+  try {
+    const body = req.body;
+    console.log(body);
+
+    if (!body.id) {
+      throw new Error("Student ID is required!");
+    }
+
+    res.json({
+      status: "Success!"
+    });
+  } catch (err) {
+    console.error("Error: ", err);
+
+    res.status(500).json({
+      status: "Invalid!",
+    });
+  }
+});
+
 app.post("/api/submit", async (req: Request, res: Response) => {
   console.log("post request recieved, sending response..")
 
-  
   try {
     const body = req.body;
     console.log(body);
@@ -106,7 +128,7 @@ app.post("/api/submit", async (req: Request, res: Response) => {
     });
 
   } catch (err) {
-    console.error(`err: ${err}`);
+    console.error(`Error: ${err}`);
 
     res.status(500).json({
       status: "Error",
