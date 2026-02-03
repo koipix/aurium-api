@@ -19,7 +19,7 @@ app.use(express.json());
 //get requests
 app.get("/", (req: Request, res: Response) => {
   res.json({
-    passowrd: randomPass
+    message: "Server is running.."
   })
 });
 
@@ -42,6 +42,7 @@ app.post("/post/verify", async (req: Request, res: Response) => {
         error: "Student ID is required!"
       });
     }
+
     const isVerified = await verifyStudent(body.id);
     
     if (!isVerified) {
@@ -49,6 +50,10 @@ app.post("/post/verify", async (req: Request, res: Response) => {
         message: "ID is not found!"
       });
     } else {
+
+      //generate passwrod when verified
+      await generatePass(body.id); 
+      
       res.json({
         status: "Success!"
       });
@@ -93,9 +98,9 @@ app.post("/api/submit", async (req: Request, res: Response) => {
 });
 
 //function queries
-async function verifyStudent(id: string): Promise<boolean> {
+async function verifyStudent(id: string) {
   try {
-    await prisma.studentAuth.update({
+    const res = await prisma.studentAuth.update({
       where: {
         student_number: parseInt(id)
       },
@@ -104,10 +109,37 @@ async function verifyStudent(id: string): Promise<boolean> {
       }
     });
 
-    return true;
+    return res;
   } catch (err: any) {
     if (err?.code === "P2025") return false;
     throw err;
+  }
+}
+
+async function generatePass(id: string) {
+  const chars: string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
+  const charsLength: number = chars.length;
+  const passLength = 10;
+  let tempPass: string = "";
+  
+  for (let i = 0; i < passLength; i++) {
+    const randIndex = crypto.randomInt(0, charsLength);
+    tempPass += chars.charAt(randIndex);
+  }
+  
+  try {
+    const res = await prisma.studentAuth.update({
+      where : {
+        student_number: parseInt(id)
+      },
+      data: {
+        hashed_password: tempPass
+      }
+    });
+
+    return res;
+  } catch (err: any) {
+    console.error("err at password generation: ", err);
   }
 }
 
@@ -127,10 +159,9 @@ async function createStudent(body: any) {
       thesis_title: body.academics.thesis,
 
       //student_id
-      studentAuth: {
+      StudentAuth: {
         create: {
           student_number: parseInt(body.id),
-          is_verified: false,
         },
       },
       //TODO: add more required data later on..
@@ -141,7 +172,7 @@ async function createStudent(body: any) {
 async function fetchUnverifiedStudents() {
   return prisma.student.findMany({
     where: {
-      studentAuth: {
+      StudentAuth: {
         is_verified: false,
       },
     },
@@ -151,7 +182,7 @@ async function fetchUnverifiedStudents() {
       last_name: true,
       course: true,
       school_email: true,
-      studentAuth: {
+      StudentAuth: {
         select: {
           student_number: true,
         },
