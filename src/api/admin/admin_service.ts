@@ -2,6 +2,7 @@ import prisma from "../../config/prisma";
 import crypto from "crypto";
 import bcrypt from "bcrypt";
 import { Resend } from 'resend';
+import { StudentStatus } from "@prisma/client";
 
 // const resend = new Resend(process.env.RESEND_API) needs a domain..
 
@@ -26,7 +27,6 @@ export async function verifyStudent(id: string) {
     return student.StudentAuth;
   } catch (err: any) {
     return false;
-    throw err;
   }
 }
 
@@ -54,7 +54,7 @@ export async function generatePass(id: string) {
         StudentAuth: {
           update: {
             hashed_password: hashedPass,
-            status: 2,
+            status: StudentStatus.APPROVED,
           },
         },
       },
