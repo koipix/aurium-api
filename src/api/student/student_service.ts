@@ -30,7 +30,7 @@ export async function createStudent(body: any) {
         },
       },
 
-      StudentAuth: {
+      studentAuth: {
         create: {
           is_verified: false,
           status: StudentStatus.REGISTERED
@@ -69,3 +69,40 @@ export async function createBooking(student_id: number, booking_id: number, peri
     console.error("Error: ", err);
   }
 }
+
+export async function getStudentProfile(student_number: number) {
+  try {
+    const student = await prisma.student.findUnique({
+      where: {
+        student_number: student_number
+      },
+      include: {
+        studentDetail: true,
+        studentAuth: {
+          select: {
+            status: true,
+          },
+        },
+      },
+    });
+
+    if (!student) {
+      return {
+        success: false,
+        reason: "Student doesn't exist!"
+      };
+    }
+
+    return {
+      success: true,
+      student
+    };
+
+  } catch (err) {
+    console.error("Error: ", err);
+    return {
+      success: false,
+      reason: "Server error nyae"
+    };
+  }
+};
