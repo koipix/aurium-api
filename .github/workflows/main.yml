@@ -1,0 +1,24 @@
+name: deploy and build to vps
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: deploy via ssh
+        uses: appleboy/ssh-action@v0.1.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            cd web/aurium-api/
+            git pull
+            npm install --omit=dev
+            npm audit fix
+            npm run build
+            pm2 restart aurium-backend
