@@ -21,4 +21,5 @@ jobs:
             npm install --omit=dev
             npm audit fix
             npm run build
+            npx prisma generate
             pm2 restart aurium-backend
