@@ -9,6 +9,15 @@ const DOMAIN = "auriumi.cloud";
 
 //pagination query
 const STUDENTS_PER_PAGE = 8;
+const M_STUDENTS_PER_PAGE = 9;
+
+const STATUS_MAP: Record<number, StudentStatus> = {
+  1: StudentStatus.REGISTERED,
+  2: StudentStatus.APPROVED,
+  3: StudentStatus.BOOKED,
+  4: StudentStatus.ATTENDED,
+  5: StudentStatus.FULLY_VERIFIED
+}
 
 export async function verifyStudent(id: string) {
   try {
@@ -204,4 +213,39 @@ export async function fetchSchedule() {
       },
     },
   });
+}
+
+export async function m_queryByFilter(page: number, dept: string, course: string, status: string) {
+  const safe_page = page > 0 ? page : 1;
+  const skip = (safe_page - 1) * M_STUDENTS_PER_PAGE;
+
+  const where: any = {};
+  if (dept !== "ALL") where.department = dept;
+  if (course !== "ALL") where.course = course;
+
+  if (status !== "ALL") {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) {
+      where.studentAuth = { status: status_map };
+    }
+  }
+  console.log(where);
+  
+  const total_students = await prisma.student.count();
+  const total_result = await prisma.student.count({where});
+
+  const students = await prisma.student.findMany({
+    skip,
+    take: M_STUDENTS_PER_PAGE,
+    orderBy: { id: "asc" as const },
+    where,
+    include: {
+      studentDetail: true,
+      studentAuth: {
+        select: { status: true },
+      },
+    },
+  });
+
+  return { students, total_students, total_result };
 }

@@ -109,3 +109,22 @@ export async function fetchSchedule(req: Request, res: Response) {
   const scheduleList = await adminService.fetchSchedule();
   return res.json(scheduleList);
 }
+
+//fetch students based on filter type
+export async function fetchMasterlist(req: Request, res: Response) {
+  try {
+    const page = Number(req.query.page ?? 1);
+    const dept = String(req.query.dept ?? "ALL");
+    const course = String(req.query.course ?? "ALL");
+    const status = String(req.query.status ?? "ALL");
+
+    const result = await adminService.m_queryByFilter(page, dept, course, status);
+    return res.json(result);
+
+  } catch (err) {
+    console.error("Server error: ", err);
+    return res.status(500).json({
+      status: 'Internal Server Error'
+    });
+  }
+}
