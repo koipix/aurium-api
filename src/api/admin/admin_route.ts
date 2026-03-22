@@ -21,6 +21,11 @@ router.get("/student/search", verifyToken, isAdmin, adminController.searchUnveri
 router.get("/masterlist", verifyToken, isAdmin, adminController.fetchMasterlist);
 router.post("/masterlist/reset/:id", verifyToken, isAdmin, adminController.handleStudentPasswordReset);
 
+//final verification
+router.get("/finalize/fetch", verifyToken, isAdmin, adminController.fetchAttendedStudents);
+router.patch("/finalize/update/:studentId", verifyToken, isAdmin, adminController.handleFinalizeStudentUpdate);
+router.patch("/finalize/verify", verifyToken, isAdmin, adminController.handleFinalizeStudentStatus);
+
 //booking endpoint
 router.post("/book/add", verifyToken, isAdmin, adminController.addSchedule);
 router.get("/book/fetch", verifyToken, isAdmin, adminController.fetchSchedule);

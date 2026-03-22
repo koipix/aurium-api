@@ -10,6 +10,7 @@ const DOMAIN = "auriumi.cloud";
 //pagination query
 const STUDENTS_PER_PAGE = 8;
 const M_STUDENTS_PER_PAGE = 9;
+const F_STUDENTS_PER_PAGE = 8;
 
 const STATUS_MAP: Record<number, StudentStatus> = {
   1: StudentStatus.REGISTERED,
@@ -18,6 +19,38 @@ const STATUS_MAP: Record<number, StudentStatus> = {
   4: StudentStatus.ATTENDED,
   5: StudentStatus.FULLY_VERIFIED
 }
+
+type FinalizeUpdateType = "personal" | "academic" | "contact" | "family";
+
+const STUDENT_PERSONAL_FIELDS = new Set([
+  "first_name",
+  "last_name",
+  "mid_name",
+  "suffix",
+  "nickname"
+]);
+
+const STUDENT_ACADEMIC_FIELDS = new Set([
+  "course",
+  "major",
+  "thesis"
+]);
+
+const STUDENT_DETAIL_CONTACT_FIELDS = new Set([
+  "barangay",
+  "city",
+  "province",
+  "contact_num"
+]);
+
+const STUDENT_DETAIL_FAMILY_FIELDS = new Set([
+  "fathers_title",
+  "fathers_name",
+  "mothers_title",
+  "mothers_name",
+  "guardians_title",
+  "guardians_name"
+]);
 
 export async function getStaffProfile(id: string) {
   try {
@@ -402,4 +435,154 @@ export async function m_queryById(student_id: number) {
 
   if (!student) return { success: false, reason: "Student doesn't exist!" };
   return { success: true, student };
+}
+
+//get paginated students where status is 'ATTENDED'
+export async function fv_queryStudents(page: number) {
+  const skip = (page - 1) * F_STUDENTS_PER_PAGE;
+
+  const students = await prisma.student.findMany({
+    skip: skip,
+    take: F_STUDENTS_PER_PAGE,
+    where: {
+      studentAuth: {
+        status: StudentStatus.ATTENDED
+      }
+    },
+    orderBy: {
+      id: 'asc'
+    },
+    include: {
+      studentDetail: true,
+    }
+  });
+
+  const total_students = await prisma.studentAuth.count({
+    where: {
+      status: StudentStatus.ATTENDED
+    }
+  });
+
+  return { students, total_students };
+}
+
+export async function fv_markFullyVerified(studentId: number, adminId: number) {
+  try {
+    const auth = await prisma.studentAuth.findUnique({
+      where: { student_number: studentId },
+      select: { student_number: true },
+    });
+
+    if (!auth) {
+      return { success: false, reason: "Student doesn't exist!" };
+    }
+
+    await prisma.$transaction([
+      prisma.studentAuth.update({
+        where: { student_number: studentId },
+        data: {
+          status: StudentStatus.FULLY_VERIFIED,
+        },
+      }),
+      prisma.logs.create({
+        data: {
+          admin_id: adminId,
+          action: AdminActions.VERIFIED,
+          target_id: studentId,
+        },
+      }),
+    ]);
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to fully verify student ${studentId}:`, err);
+    return {
+      success: false,
+      reason: "An unexpected error occurred. Please try again later.",
+    };
+  }
+}
+
+export async function fv_updateStudent(studentId: number, type: string, data: any) {
+  try {
+    const normalizedType = String(type).toLowerCase() as FinalizeUpdateType;
+    const validTypes: FinalizeUpdateType[] = ["personal", "academic", "contact", "family"];
+
+    if (!validTypes.includes(normalizedType)) {
+      return { success: false, reason: "Invalid update type." };
+    }
+
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      return { success: false, reason: "Invalid request body." };
+    }
+
+    const payloadEntries = Object.entries(data).filter(([, value]) => value !== undefined);
+    if (payloadEntries.length === 0) {
+      return { success: false, reason: "No fields to update." };
+    }
+
+    const studentExists = await prisma.student.findUnique({
+      where: { student_number: studentId },
+      select: { student_number: true },
+    });
+
+    if (!studentExists) {
+      return { success: false, reason: "Student doesn't exist!" };
+    }
+
+    if (normalizedType === "personal" || normalizedType === "academic") {
+      const allowed = normalizedType === "personal" ? STUDENT_PERSONAL_FIELDS : STUDENT_ACADEMIC_FIELDS;
+      const invalidFields = payloadEntries
+        .map(([key]) => key)
+        .filter((key) => !allowed.has(key));
+
+      if (invalidFields.length > 0) {
+        return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+      }
+
+      const studentData: Record<string, any> = {};
+      for (const [key, value] of payloadEntries) {
+        const fieldKey = key === "thesis" ? "thesis_title" : key;
+        studentData[fieldKey] = value;
+      }
+
+      await prisma.student.update({
+        where: { student_number: studentId },
+        data: studentData,
+      });
+
+      return { success: true };
+    }
+
+    const allowed = normalizedType === "contact" ? STUDENT_DETAIL_CONTACT_FIELDS : STUDENT_DETAIL_FAMILY_FIELDS;
+    const invalidFields = payloadEntries
+      .map(([key]) => key)
+      .filter((key) => !allowed.has(key));
+
+    if (invalidFields.length > 0) {
+      return { success: false, reason: `Invalid field(s) for ${normalizedType}: ${invalidFields.join(", ")}` };
+    }
+
+    const detailData: Record<string, any> = {};
+    for (const [key, value] of payloadEntries) {
+      detailData[key] = value;
+    }
+
+    await prisma.student.update({
+      where: { student_number: studentId },
+      data: {
+        studentDetail: {
+          update: detailData,
+        },
+      },
+    });
+
+    return { success: true };
+  } catch (err) {
+    console.error(`Failed to update student ${studentId}:`, err);
+    return {
+      success: false,
+      reason: "An unexpected error occurred. Please try again later.",
+    };
+  }
 }
