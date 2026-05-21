@@ -8,6 +8,25 @@ interface AdminRequest extends Request {
   }
 }
 
+export async function verifyPassword(req: AdminRequest, res: Response) {
+  const admin_id = req.user?.admin_id;
+  if (!admin_id) return res.status(401).json({ reason: "Unauthorized" });
+
+  const { password } = req.body;
+  if (typeof password !== "string" || !password) {
+    return res.status(400).json({ reason: "Password is required." });
+  }
+
+  try {
+    const valid = await adminService.verifyAdminPassword(admin_id, password);
+    if (!valid) return res.status(401).json({ reason: "Incorrect password." });
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Password verify error:", err);
+    return res.status(500).json({ reason: "Internal Server Error" });
+  }
+}
+
 export async function getStaffDetails(req: AdminRequest, res: Response) {
   try {
     const id = req.user?.admin_id;
@@ -253,6 +272,45 @@ export async function fetchMasterlist(req: Request, res: Response) {
     return res.status(500).json({
       status: 'Internal Server Error'
     });
+  }
+}
+
+const ALLOWED_STUDENT_COLS = new Set([
+  "student_number", "first_name", "last_name", "mid_name", "nickname", "suffix",
+  "department", "course", "major", "thesis_title", "school_email", "personal_email", "created_at",
+]);
+const ALLOWED_DETAIL_COLS = new Set([
+  "birth_date", "province", "city", "barangay",
+  "mothers_name", "mothers_title", "fathers_name", "fathers_title",
+  "guardians_name", "guardians_title", "contact_num",
+]);
+
+export async function exportMasterlist(req: Request, res: Response) {
+  try {
+    const dept = String(req.query.dept ?? "ALL");
+    const course = String(req.query.course ?? "ALL");
+    const major = String(req.query.major ?? "ALL");
+    const status = String(req.query.status ?? "ALL");
+
+    const rawCols = String(req.query.columns ?? "");
+    const cols = rawCols.split(",").map(c => c.trim()).filter(Boolean);
+
+    const students = await adminService.m_exportAll(dept, course, major, status);
+
+    const rows = students.map(s => {
+      const row: Record<string, any> = {};
+      for (const col of cols) {
+        if (ALLOWED_STUDENT_COLS.has(col)) row[col] = (s as any)[col] ?? null;
+        else if (ALLOWED_DETAIL_COLS.has(col)) row[col] = (s.studentDetail as any)?.[col] ?? null;
+        else if (col === "status") row[col] = s.studentAuth?.status ?? null;
+      }
+      return row;
+    });
+
+    return res.json({ success: true, data: rows, total: rows.length });
+  } catch (err) {
+    console.error("Export error:", err);
+    return res.status(500).json({ status: "Internal Server Error" });
   }
 }
 

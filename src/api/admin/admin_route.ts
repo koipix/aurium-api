@@ -6,6 +6,9 @@ const router = Router();
 //get admin's profile
 router.get("/profile", adminController.getStaffDetails);
 
+//verify admin password (used before sensitive actions)
+router.post("/verify-password", adminController.verifyPassword);
+
 //get all unverified students
 router.get("/student", adminController.fetchUnverifiedStudents);
 
@@ -19,6 +22,7 @@ router.patch("/student/:id", adminController.handleVerify);
 router.delete("/student/:id", adminController.handleCancel);
 
 //masterlist
+router.get("/masterlist/export", adminController.exportMasterlist);
 router.get("/masterlist", adminController.fetchMasterlist);
 router.post("/masterlist/reset/:id", adminController.handleStudentPasswordReset);
 

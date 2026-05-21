@@ -59,6 +59,15 @@ const STUDENT_DETAIL_FAMILY_FIELDS = new Set([
   "guardians_name"
 ]);
 
+export async function verifyAdminPassword(admin_id: string, password: string) {
+  const admin = await prisma.admin.findUnique({
+    where: { id: parseInt(admin_id) },
+    select: { hashed_password: true },
+  });
+  if (!admin) return false;
+  return bcrypt.compare(password, admin.hashed_password);
+}
+
 export async function getStaffProfile(id: string) {
   try {
     const staff = await prisma.admin.findUnique({
@@ -483,6 +492,27 @@ export async function m_queryById(student_id: number) {
 
   if (!student) return { success: false, reason: "Student doesn't exist!" };
   return { success: true, student };
+}
+
+export async function m_exportAll(dept: string, course: string, major: string, status: string) {
+  const where: any = {};
+  if (dept !== "ALL") where.department = dept;
+  if (course !== "ALL") where.course = course;
+  if (major !== "ALL") where.major = major;
+
+  if (status !== "ALL") {
+    const status_map = STATUS_MAP[Number(status)];
+    if (status_map) where.studentAuth = { status: status_map };
+  }
+
+  return prisma.student.findMany({
+    orderBy: { student_number: "asc" },
+    where,
+    include: {
+      studentDetail: true,
+      studentAuth: { select: { status: true } },
+    },
+  });
 }
 
 //get paginated students where status is 'ATTENDED'
