@@ -10,12 +10,21 @@ interface StudentRequest extends Request {
 }
 
 export async function handleLogin(req: Request, res: Response) {
-    const { id, pass, is_admin } = req.body;
+    const { id, pass, is_admin, captcha_token } = req.body;
 
     if (!id || !pass) {
         return res.status(401).json({
             error: "Missing login details"
         });
+    }
+
+    if (!captcha_token) {
+        return res.status(400).json({ error: "CAPTCHA token is required." });
+    }
+
+    const captcha_ok = await authService.verifyCaptcha(captcha_token);
+    if (!captcha_ok) {
+        return res.status(400).json({ error: "CAPTCHA verification failed." });
     }
 
     try {
