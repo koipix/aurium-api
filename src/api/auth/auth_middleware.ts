@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import "dotenv/config";
+import { Permission, PERMISSION_MATRIX } from "./permissions";
 
 const jwt_sauce = process.env.JWT_SAUCE;
 
@@ -35,13 +36,19 @@ export function isAdmin(req: AuthRequest, res: Response, next: NextFunction) {
     }
 }
 
-// ADMINISTRATOR-only guard (role is embedded in JWT at login time)
-export function isAdministrator(req: AuthRequest, res: Response, next: NextFunction) {
-    if (req.user && req.user.role === 'ADMINISTRATOR') {
-        next();
-    } else {
+//role-aware guard factory
+export function requirePermission(permission: Permission) {
+    const guard = (req: AuthRequest, res: Response, next: NextFunction) => {
+        const role = req.user?.role;
+        if (role && PERMISSION_MATRIX[permission].includes(role)) {
+            return next();
+        }
         return res.status(403).json({
-            error: "Forbidden! This action requires Administrator access."
+            error: "Forbidden! You do not have permission to perform this action."
         });
-    }
+    };
+
+    //route marker read by assertRoutesGuarded()
+    (guard as unknown as { __permission: Permission }).__permission = permission;
+    return guard;
 }
